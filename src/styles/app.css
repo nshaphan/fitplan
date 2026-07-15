@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #08090D; --text: #F5F6F8; --text-sub: rgba(245,246,248,.55); --text-sub2: rgba(245,246,248,.4);
+  --glass-fill: rgba(255,255,255,.07); --glass-border: rgba(255,255,255,.12);
+  --glass-fill-strong: rgba(255,255,255,.1); --glass-border-strong: rgba(255,255,255,.16);
+  --pill-off-fill: rgba(255,255,255,.07); --pill-off-border: rgba(255,255,255,.13); --pill-off-text: rgba(245,246,248,.5);
+  --accent: #FF7A45; --accent-contrast: #2a0d02;
+  --done: #2FD675; --done-contrast: #04150a;
+  --info: #0A84FF;
+  --danger: #FF453A; --danger-bg: rgba(255,69,58,.14); --danger-border: rgba(255,69,58,.3); --danger-text: #FF8A80;
+  --hairline: rgba(255,255,255,.1);
+  --badge-bg: rgba(255,122,69,.18); --badge-text: #FF9A6B; --nav-active-bg: rgba(255,122,69,.22);
+  --blob1: rgba(255,91,46,.35); --blob2: rgba(10,132,255,.28); --blob3: rgba(47,214,117,.22);
+  --shadow-l1: 0 8px 24px rgba(0,0,0,.25); --inset-l1: inset 0 1px 0 rgba(255,255,255,.15);
+  --shadow-l2: 0 16px 40px rgba(0,0,0,.35); --inset-l2: inset 0 1px 0 rgba(255,255,255,.18);
+  --shadow-l3: 0 20px 50px rgba(0,0,0,.42); --inset-l3: inset 0 1.5px 0 rgba(255,255,255,.25);
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #F2F3F6; --text: #16181D; --text-sub: rgba(22,24,29,.55); --text-sub2: rgba(22,24,29,.4);
+    --glass-fill: rgba(255,255,255,.6); --glass-border: rgba(255,255,255,.8);
+    --glass-fill-strong: rgba(255,255,255,.75); --glass-border-strong: rgba(255,255,255,.9);
+    --pill-off-fill: rgba(0,0,0,.04); --pill-off-border: rgba(0,0,0,.09); --pill-off-text: rgba(22,24,29,.42);
+    --accent: #FF5B2E; --accent-contrast: #fff;
+    --done: #2FBE68; --done-contrast: #fff;
+    --danger: #FF3B30; --danger-bg: rgba(255,59,48,.08); --danger-border: rgba(255,59,48,.22); --danger-text: #D8352B;
+    --hairline: rgba(0,0,0,.08);
+    --badge-bg: rgba(255,91,46,.12); --badge-text: #D8430F; --nav-active-bg: rgba(255,91,46,.14);
+    --blob1: rgba(255,91,46,.18); --blob2: rgba(10,132,255,.16); --blob3: rgba(47,214,117,.14);
+    --shadow-l1: 0 8px 24px rgba(20,20,30,.08); --inset-l1: inset 0 1px 0 rgba(255,255,255,.7);
+    --shadow-l2: 0 16px 40px rgba(20,20,30,.12); --inset-l2: inset 0 1px 0 rgba(255,255,255,.85);
+    --shadow-l3: 0 20px 50px rgba(20,20,30,.16); --inset-l3: inset 0 1.5px 0 rgba(255,255,255,.9);
+  }
+}
+
+@theme {
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-done: var(--done);
+  --color-done-contrast: var(--done-contrast);
+  --color-info: var(--info);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+  --color-danger-text: var(--danger-text);
+  --color-sub: var(--text-sub);
+  --color-sub2: var(--text-sub2);
+  --color-hairline: var(--hairline);
+  --color-pilloff: var(--pill-off-fill);
+  --color-pilloff-text: var(--pill-off-text);
+  --color-badge: var(--badge-bg);
+  --color-badge-text: var(--badge-text);
+  --color-nav-active: var(--nav-active-bg);
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+}
+.bg-app { background: var(--bg); }
+.text-app { color: var(--text); }
+.text-sub { color: var(--text-sub); }
+.text-sub2 { color: var(--text-sub2); }
+.border-hairline { border-color: var(--hairline); }
+.border-pilloff { border-color: var(--pill-off-border); }
+.bg-pilloff { background: var(--pill-off-fill); }
+.text-pilloff { color: var(--pill-off-text); }
+.border-glass { border-color: var(--glass-border); }
+.border-glass-strong { border-color: var(--glass-border-strong); }
+.bg-badge { background: var(--badge-bg); }
+.text-badge { color: var(--badge-text); }
+.bg-nav-active { background: var(--nav-active-bg); }
+.bg-glass { background: var(--glass-fill); }
+.border-accent { border-color: var(--accent); }
+.border-done { border-color: var(--done); }
+.border-danger-border { border-color: var(--danger-border); }
+
+@keyframes blobFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-3%, 4%) scale(1.06); }
+}
+.blob { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; }
+.blob1 { top: -200px; left: -150px; width: 600px; height: 600px; background: radial-gradient(circle, var(--blob1), transparent 70%); filter: blur(60px); animation: blobFloat 18s ease-in-out infinite; }
+.blob2 { bottom: -250px; right: -200px; width: 700px; height: 700px; background: radial-gradient(circle, var(--blob2), transparent 70%); filter: blur(70px); animation: blobFloat 22s ease-in-out infinite reverse; }
+.blob3 { top: 40%; left: 60%; width: 450px; height: 450px; background: radial-gradient(circle, var(--blob3), transparent 70%); filter: blur(60px); animation: blobFloat 26s ease-in-out infinite; }
+
+.glass {
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-l1), var(--inset-l1);
+}
+.glass-strong {
+  background: var(--glass-fill-strong);
+  border: 1px solid var(--glass-border-strong);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  box-shadow: var(--shadow-l3), var(--inset-l3);
+}
+.glass-modal {
+  background: var(--glass-fill-strong);
+  border: 1px solid var(--glass-border-strong);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow: var(--shadow-l2), var(--inset-l2);
+}
+
+@keyframes goPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+.animate-pulse-go { animation: goPulse 1s ease-in-out infinite; }
+
+button:focus-visible, [role="checkbox"]:focus-visible, [role="button"]:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
