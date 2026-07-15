@@ -1,4 +1,4 @@
-const CACHE = 'fitplan-v1';
+const CACHE = 'fitplan-v2';
 const SHELL = [
   './',
   './index.html',

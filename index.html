@@ -152,6 +152,40 @@ nav button .ico{display:block;font-size:18px;margin-bottom:1px}
   border-radius:12px;padding:12px;font-size:14px;cursor:pointer}
 .view{display:none}.view.active{display:block}
 footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 8px}
+
+/* Weight-per-set logging */
+.set{flex-direction:column;gap:1px}
+.set .setw{font-size:10px;opacity:.85;font-weight:500}
+.tapinfo{font-size:11px;color:var(--muted);margin-top:8px}
+.hint-progress{background:var(--surface2);border-left:3px solid var(--done);border-radius:0 10px 10px 0;
+  padding:8px 10px;font-size:13px;color:var(--muted);margin-top:8px}
+.hint-progress b{color:var(--done)}
+
+/* Modal (weight logger) */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:70;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;width:100%;max-width:320px}
+.modal h3{font-size:18px;margin-bottom:12px}
+.modal-actions{display:flex;gap:10px;margin-top:16px}
+.modal-actions button{flex:1;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;border:1.5px solid var(--line)}
+.modal-cancel{background:var(--surface2);color:var(--muted)}
+.modal-save{background:var(--accent);color:#161000;border-color:var(--accent)}
+
+/* Body metrics / history / data actions */
+.spark-label{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}
+.spark-label .name{font-size:13px;color:var(--text);font-weight:600}
+.spark-label .avg{font-size:12px;color:var(--accent);font-family:'Oswald',sans-serif}
+.action-row{display:flex;gap:8px;margin-top:12px}
+.action-row button{flex:1;background:var(--surface2);border:1.5px solid var(--line);color:var(--text);
+  border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer}
+
+/* Accessibility */
+button:focus-visible,.chk:focus-visible,.week button:focus-visible,.meal .head:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px;
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition:none !important;animation:none !important}
+}
 </style>
 </head>
 <body>
@@ -225,9 +259,60 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:20px 0 8px}
       <h2>Progress markers</h2>
       <p class="sub" style="margin-top:6px">① Weights lifted (log every session) · ② Same-finisher distance or rounds · ③ Waist measurement — the best belly-fat proxy · ④ Monthly photos. Visible change lands around weeks 6–10. Fat comes off body-wide; no exercise targets belly fat directly.</p>
     </div>
+
+    <div class="card">
+      <span class="badge">Log weekly</span>
+      <h2>Body metrics</h2>
+      <p class="sub">Body weight and waist (the best belly-fat proxy). Logging today overwrites today's entry.</p>
+      <div class="field">
+        <label for="metricBw">Body weight (kg)</label>
+        <input id="metricBw" type="number" inputmode="decimal" placeholder="e.g. 79.5">
+      </div>
+      <div class="field">
+        <label for="metricWaist">Waist (cm)</label>
+        <input id="metricWaist" type="number" inputmode="decimal" placeholder="e.g. 88">
+      </div>
+      <button class="reset" style="border-style:solid;color:var(--accent);border-color:var(--accent)" onclick="upsertMetric()">Log today</button>
+      <div class="spark-label"><span class="name">Weight trend</span><span class="avg" id="metricBwAvg">No data yet</span></div>
+      <div id="metricBwSpark"></div>
+      <div class="spark-label"><span class="name">Waist trend</span><span class="avg" id="metricWaistAvg">No data yet</span></div>
+      <div id="metricWaistSpark"></div>
+    </div>
+
+    <div class="card">
+      <span class="badge">Last 8 weeks</span>
+      <h2>History</h2>
+      <p class="sub">Weekly completion and working-weight trend. Fills in as weeks roll over.</p>
+      <div id="historyCompletion"></div>
+      <div id="historyLifts"></div>
+    </div>
+
+    <div class="card">
+      <span class="badge">Backup</span>
+      <h2>Your data</h2>
+      <p class="sub">Export a JSON backup to move to a new device, or restore one.</p>
+      <div class="action-row">
+        <button onclick="exportState()">Export</button>
+        <button onclick="triggerImport()">Import</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importState(event)">
+    </div>
   </section>
 
   <footer>Consistency beats perfection · an 80% week beats a perfect 3 days</footer>
+</div>
+
+<!-- Weight logger modal -->
+<div class="modal-overlay" id="logModal" onclick="if(event.target===this) closeLogModal()">
+  <div class="modal">
+    <h3>Log set</h3>
+    <div class="field"><label for="logKg">Weight (kg)</label><input id="logKg" type="number" inputmode="decimal" step="0.5"></div>
+    <div class="field"><label for="logReps">Reps</label><input id="logReps" type="number" inputmode="numeric"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeLogModal()">Cancel</button>
+      <button class="modal-save" onclick="saveLog()">Save</button>
+    </div>
+  </div>
 </div>
 
 <!-- Rest timer -->
@@ -326,7 +411,7 @@ const RULES = [
 ];
 
 /* ---------- state (three-tier persistence: window.storage -> localStorage -> in-memory) ---------- */
-let state = {sets:{}, checks:{}, rules:{}, bw:'', diet:'train', week:'', history:[]};
+let state = {sets:{}, checks:{}, rules:{}, bw:'', diet:'train', week:'', history:[], logs:{}, metrics:[]};
 let memoryStore = {};
 const STORAGE_KEY = 'fitplan-state';
 
@@ -382,6 +467,33 @@ function isoWeekString(date){
   return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
 
+function isToday(ts){
+  if(!ts) return false;
+  return new Date(ts).toDateString() === new Date().toDateString();
+}
+
+function repRangeFromMeta(m){
+  if(!m.includes('· rest')) return null;
+  const match = m.match(/×\s*(\d+)(?:[–-](\d+))?/);
+  if(!match) return null;
+  const lo = parseInt(match[1], 10);
+  const hi = match[2] ? parseInt(match[2], 10) : lo;
+  return {lo, hi};
+}
+
+function snapshotLifts(){
+  const lifts = {};
+  DAYS.forEach(d=>{
+    if(d.type !== 'lift') return;
+    d.ex.forEach((e, ei)=>{
+      if(!repRangeFromMeta(e.m)) return;
+      const log = state.logs && state.logs[`${d.id}-${ei}-0`];
+      if(log && log.kg != null) lifts[e.n] = log.kg;
+    });
+  });
+  return lifts;
+}
+
 function computeWeekCompletion(){
   let done = 0, total = 0;
   DAYS.forEach(d=>{
@@ -408,7 +520,7 @@ function handleWeekRollover(){
   if(state.week !== cw){
     if(!Array.isArray(state.history)) state.history = [];
     const summary = computeWeekCompletion();
-    state.history.push({week: state.week, done: summary.done, total: summary.total, pct: summary.pct});
+    state.history.push({week: state.week, done: summary.done, total: summary.total, pct: summary.pct, lifts: snapshotLifts()});
     state.history = state.history.slice(-26);
     state.sets = {};
     state.checks = {};
@@ -437,15 +549,29 @@ function renderDay(){
         const key = `${d.id}-${ei}-${si}`;
         const on = state.sets[key] ? 'on' : '';
         const lbl = e.s===1 ? '✓ done' : `Set ${si+1}`;
-        return `<button class="set ${on}" onclick="toggleSet('${key}',this)">${lbl}</button>`;
+        const log = state.logs && state.logs[key];
+        const logLbl = log && log.kg!=null ? `<span class="setw">${log.kg}${log.reps!=null?'×'+log.reps:''}</span>` : '';
+        const aria = `${lbl}${on?' done':''}${log && log.kg!=null?`, last logged ${log.kg}kg${log.reps!=null?' for '+log.reps+' reps':''}`:''}`;
+        return `<button class="set ${on}" aria-pressed="${on==='on'}" aria-label="${aria}" onpointerdown="startPress('${key}')" onpointerup="endPress('${key}',this)" onpointerleave="cancelPress()" onpointercancel="cancelPress()">${lbl}${logLbl}</button>`;
       }).join('');
-      return `<div class="ex"><div class="name">${e.n}</div><div class="meta">${e.m}</div><div class="sets">${pills}</div></div>`;
+      const range = repRangeFromMeta(e.m);
+      let hint = '';
+      if(range){
+        const keys = Array.from({length:e.s},(_,si)=>`${d.id}-${ei}-${si}`);
+        const logs = keys.map(k=>state.logs && state.logs[k]);
+        const allHitToday = logs.every(l=>l && l.reps!=null && l.reps>=range.hi && isToday(l.ts));
+        if(allHitToday){
+          const lower = /squat|deadlift|leg press|lunge|split squat/i.test(e.n);
+          hint = `<div class="hint-progress">💪 Top of range on all sets — try <b>+${lower?5:2.5} kg</b> next session.</div>`;
+        }
+      }
+      return `<div class="ex"><div class="name">${e.n}</div><div class="meta">${e.m}</div><div class="sets">${pills}</div><div class="tapinfo">Long-press a set to log weight</div>${hint}</div>`;
     }).join('');
   } else {
     inner += d.items.map((it,ii)=>{
       const key = `${d.id}-c${ii}`;
-      const on = state.checks[key] ? 'on' : '';
-      return `<div class="chk ${on}" onclick="toggleChk('${key}',this)"><div class="box">✓</div><div class="lbl">${it}</div></div>`;
+      const on = !!state.checks[key];
+      return `<div class="chk ${on?'on':''}" role="checkbox" aria-checked="${on}" tabindex="0" aria-label="${it}" onclick="toggleChk('${key}',this)" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();toggleChk('${key}',this);}"><div class="box" aria-hidden="true">✓</div><div class="lbl">${it}</div></div>`;
     }).join('');
   }
   inner += `<div class="note">${d.note}</div></div>`;
@@ -453,13 +579,62 @@ function renderDay(){
 }
 
 function pickDay(i){ currentDay = i; renderWeek(); renderDay(); }
-function toggleSet(k,el){ state.sets[k]=!state.sets[k]; el.classList.toggle('on'); save(); }
-function toggleChk(k,el){ state.checks[k]=!state.checks[k]; el.classList.toggle('on'); save(); }
+function toggleSet(k,el){
+  state.sets[k]=!state.sets[k];
+  el.classList.toggle('on');
+  el.setAttribute('aria-pressed', state.sets[k] ? 'true' : 'false');
+  save();
+}
+function toggleChk(k,el){
+  state.checks[k]=!state.checks[k];
+  el.classList.toggle('on');
+  el.setAttribute('aria-checked', state.checks[k] ? 'true' : 'false');
+  save();
+}
 function resetDay(){
   const d = DAYS[currentDay];
   Object.keys(state.sets).forEach(k=>{ if(k.startsWith(d.id+'-')) delete state.sets[k]; });
   Object.keys(state.checks).forEach(k=>{ if(k.startsWith(d.id+'-')) delete state.checks[k]; });
+  if(state.logs) Object.keys(state.logs).forEach(k=>{ if(k.startsWith(d.id+'-')) delete state.logs[k]; });
   save(); renderDay();
+}
+
+/* ---------- weight-per-set logging (long-press a set pill) ---------- */
+let pressTimer = null, longPress = false, logKey = null;
+function startPress(key){
+  longPress = false;
+  clearTimeout(pressTimer);
+  pressTimer = setTimeout(()=>{ longPress = true; openWeightLogger(key); }, 500);
+}
+function endPress(key, el){
+  clearTimeout(pressTimer);
+  if(!longPress) toggleSet(key, el);
+}
+function cancelPress(){ clearTimeout(pressTimer); }
+
+function openWeightLogger(key){
+  logKey = key;
+  const existing = state.logs && state.logs[key];
+  document.getElementById('logKg').value = existing && existing.kg != null ? existing.kg : '';
+  document.getElementById('logReps').value = existing && existing.reps != null ? existing.reps : '';
+  document.getElementById('logModal').classList.add('open');
+  document.getElementById('logKg').focus();
+}
+function closeLogModal(){
+  document.getElementById('logModal').classList.remove('open');
+  logKey = null;
+}
+function saveLog(){
+  if(!logKey) return;
+  const kg = parseFloat(document.getElementById('logKg').value);
+  const reps = parseInt(document.getElementById('logReps').value, 10);
+  if(!isNaN(kg) || !isNaN(reps)){
+    if(!state.logs) state.logs = {};
+    state.logs[logKey] = {kg: isNaN(kg) ? null : kg, reps: isNaN(reps) ? null : reps, ts: Date.now()};
+    save();
+  }
+  closeLogModal();
+  renderDay();
 }
 
 /* ---------- diet ---------- */
@@ -475,11 +650,16 @@ function renderMeals(){
 function dietMode(m){ state.diet=m; save(); renderMeals(); }
 function renderRules(){
   document.getElementById('rules').innerHTML = RULES.map((r,i)=>{
-    const on = state.rules['r'+i] ? 'on' : '';
-    return `<div class="chk ${on}" onclick="toggleRule(${i},this)"><div class="box">✓</div><div class="lbl">${i+1}. ${r}</div></div>`;
+    const on = !!state.rules['r'+i];
+    return `<div class="chk ${on?'on':''}" role="checkbox" aria-checked="${on}" tabindex="0" aria-label="${i+1}. ${r}" onclick="toggleRule(${i},this)" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();toggleRule(${i},this);}"><div class="box" aria-hidden="true">✓</div><div class="lbl">${i+1}. ${r}</div></div>`;
   }).join('');
 }
-function toggleRule(i,el){ state.rules['r'+i]=!state.rules['r'+i]; el.classList.toggle('on'); save(); }
+function toggleRule(i,el){
+  state.rules['r'+i]=!state.rules['r'+i];
+  el.classList.toggle('on');
+  el.setAttribute('aria-checked', state.rules['r'+i] ? 'true' : 'false');
+  save();
+}
 
 /* ---------- calculator ---------- */
 function calc(){
@@ -494,19 +674,164 @@ function calc(){
   set('t-kcal',kcal); set('t-pro',pro); set('t-fat',fat); set('t-carb',carb);
 }
 
+/* ---------- body metrics ---------- */
+function sparklineSVG(values, color){
+  if(values.length < 2) return '<p class="sub" style="margin-top:4px">Log a few entries to see a trend.</p>';
+  const w=280, h=48, pad=4;
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = (max - min) || 1;
+  const stepX = (w - pad*2) / (values.length - 1);
+  const pts = values.map((v,i)=>{
+    const x = pad + i*stepX;
+    const y = h - pad - ((v-min)/range)*(h-pad*2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+function rollingAvg(field){
+  const vals = (state.metrics||[]).filter(m=>m[field]!=null).slice(-7).map(m=>m[field]);
+  if(!vals.length) return null;
+  return vals.reduce((a,b)=>a+b,0) / vals.length;
+}
+
+function renderMetrics(){
+  if(!Array.isArray(state.metrics)) state.metrics = [];
+  const bwVals = state.metrics.filter(m=>m.bw!=null).map(m=>m.bw);
+  const waistVals = state.metrics.filter(m=>m.waist!=null).map(m=>m.waist);
+  const bwAvg = rollingAvg('bw'), waistAvg = rollingAvg('waist');
+  document.getElementById('metricBwSpark').innerHTML = sparklineSVG(bwVals.slice(-12), 'var(--accent)');
+  document.getElementById('metricWaistSpark').innerHTML = sparklineSVG(waistVals.slice(-12), 'var(--done)');
+  document.getElementById('metricBwAvg').textContent = bwAvg!=null ? `${bwAvg.toFixed(1)} kg avg` : 'No data yet';
+  document.getElementById('metricWaistAvg').textContent = waistAvg!=null ? `${waistAvg.toFixed(1)} cm avg` : 'No data yet';
+  const today = new Date().toISOString().slice(0,10);
+  const todays = state.metrics.find(m=>m.date===today);
+  document.getElementById('metricBw').value = todays && todays.bw!=null ? todays.bw : '';
+  document.getElementById('metricWaist').value = todays && todays.waist!=null ? todays.waist : '';
+}
+
+function upsertMetric(){
+  const bw = parseFloat(document.getElementById('metricBw').value);
+  const waist = parseFloat(document.getElementById('metricWaist').value);
+  if(isNaN(bw) && isNaN(waist)) return;
+  if(!Array.isArray(state.metrics)) state.metrics = [];
+  const today = new Date().toISOString().slice(0,10);
+  const idx = state.metrics.findIndex(m=>m.date===today);
+  const entry = {date: today, bw: isNaN(bw) ? null : bw, waist: isNaN(waist) ? null : waist};
+  if(idx >= 0) state.metrics[idx] = entry; else state.metrics.push(entry);
+  state.metrics.sort((a,b)=>a.date.localeCompare(b.date));
+  state.metrics = state.metrics.slice(-90);
+  save();
+  renderMetrics();
+}
+
+/* ---------- weekly history ---------- */
+function renderHistory(){
+  const hist = (state.history || []).slice(-8);
+  const completionEl = document.getElementById('historyCompletion');
+  const liftsEl = document.getElementById('historyLifts');
+  if(!hist.length){
+    completionEl.innerHTML = '<p class="sub" style="margin-top:10px">Your first weekly summary appears after this week rolls over.</p>';
+    liftsEl.innerHTML = '';
+    return;
+  }
+  const w=280, h=64, pad=6, barGap=6;
+  const barW = (w - pad*2 - barGap*(hist.length-1)) / hist.length;
+  const bars = hist.map((wk,i)=>{
+    const x = pad + i*(barW+barGap);
+    const barH = Math.max(2, (wk.pct/100)*(h-pad*2));
+    const y = h - pad - barH;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" rx="3" fill="var(--accent)"/>`;
+  }).join('');
+  completionEl.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}">${bars}</svg>
+    <p class="sub" style="margin-top:4px">${hist.map(wk=>`${wk.week}: ${wk.pct}%`).join(' · ')}</p>`;
+
+  const liftNames = new Set();
+  hist.forEach(wk => Object.keys(wk.lifts || {}).forEach(n => liftNames.add(n)));
+  liftsEl.innerHTML = Array.from(liftNames).map(name=>{
+    const series = hist.map(wk => (wk.lifts && wk.lifts[name] != null) ? wk.lifts[name] : null).filter(v=>v!=null);
+    if(series.length < 2) return '';
+    return `<div class="spark-label"><span class="name">${name}</span><span class="avg">${series[series.length-1]} kg</span></div>${sparklineSVG(series, 'var(--done)')}`;
+  }).join('');
+}
+
+/* ---------- export / import ---------- */
+async function exportState(){
+  const payload = JSON.stringify(state, null, 2);
+  const filename = `fitplan-backup-${new Date().toISOString().slice(0,10)}.json`;
+  const blob = new Blob([payload], {type:'application/json'});
+  try{
+    const file = new File([blob], filename, {type:'application/json'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:'FitPlan backup'});
+      return;
+    }
+  }catch(e){}
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+function triggerImport(){ document.getElementById('importFile').click(); }
+
+async function importState(evt){
+  const file = evt.target.files[0];
+  evt.target.value = '';
+  if(!file) return;
+  const text = await file.text();
+  let parsed;
+  try{ parsed = JSON.parse(text); }
+  catch(e){ alert('That file could not be read as a FitPlan backup.'); return; }
+  if(!confirm('Import this backup? It will replace your current progress.')) return;
+  state = Object.assign({sets:{}, checks:{}, rules:{}, bw:'', diet:'train', week:isoWeekString(new Date()), history:[], logs:{}, metrics:[]}, parsed);
+  await save();
+  if(state.bw) document.getElementById('bw').value = state.bw;
+  renderWeek(); renderDay(); renderMeals(); renderRules(); calc(); renderMetrics(); renderHistory();
+}
+
 /* ---------- rest timer ---------- */
-let restInt=null, restLeft=0;
+let restInt=null, restLeft=0, wakeLock=null;
+
+async function requestWakeLock(){
+  try{ if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }
+  catch(e){}
+}
+function releaseWakeLock(){
+  if(wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock = null; }
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && restInt) requestWakeLock();
+});
+
+function notifyRestDone(){
+  try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
+  try{
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification('Rest over', {body:'Time for your next set.', tag:'fitplan-rest'});
+    }
+  }catch(e){}
+}
+
 function fmt(s){ return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
 function startRest(sec){
   stopRest();
   restLeft = sec;
   document.getElementById('restbar').classList.add('running');
   document.getElementById('restTime').textContent = fmt(restLeft);
+  requestWakeLock();
+  if('Notification' in window && Notification.permission === 'default'){
+    try{ Notification.requestPermission(); }catch(e){}
+  }
   restInt = setInterval(()=>{
     restLeft--;
     document.getElementById('restTime').textContent = fmt(Math.max(0,restLeft));
     if(restLeft<=0){
       stopRest();
+      notifyRestDone();
       document.getElementById('restTime').textContent = 'GO!';
       setTimeout(()=>{ if(!restInt) document.getElementById('restTime').textContent='0:00'; }, 2500);
     }
@@ -514,6 +839,7 @@ function startRest(sec){
 }
 function stopRest(){
   if(restInt){ clearInterval(restInt); restInt=null; }
+  releaseWakeLock();
   document.getElementById('restbar').classList.remove('running');
   document.getElementById('restTime').textContent='0:00';
 }
@@ -532,7 +858,7 @@ function go(v){
   await load();
   handleWeekRollover();
   if(state.bw) document.getElementById('bw').value = state.bw;
-  renderWeek(); renderDay(); renderMeals(); renderRules(); calc();
+  renderWeek(); renderDay(); renderMeals(); renderRules(); calc(); renderMetrics(); renderHistory();
 })();
 
 if('serviceWorker' in navigator){
