@@ -643,9 +643,15 @@ function renderMeals(){
   document.getElementById('pd-rest').classList.toggle('active', state.diet==='rest');
   document.getElementById('meals').innerHTML = MEALS[state.diet].map((m,i)=>
     `<div class="meal" id="meal-${i}">
-      <div class="head" onclick="document.getElementById('meal-${i}').classList.toggle('open')">
+      <div class="head" role="button" tabindex="0" aria-expanded="false" aria-controls="meal-${i}-items"
+        onclick="toggleMeal(${i})" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();toggleMeal(${i});}">
         <h3>${m.h}</h3><span class="kcal">${m.k}</span></div>
-      <ul>${m.li.map(x=>`<li>${x}</li>`).join('')}</ul></div>`).join('');
+      <ul id="meal-${i}-items">${m.li.map(x=>`<li>${x}</li>`).join('')}</ul></div>`).join('');
+}
+function toggleMeal(i){
+  const el = document.getElementById('meal-'+i);
+  const open = el.classList.toggle('open');
+  el.querySelector('.head').setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 function dietMode(m){ state.diet=m; save(); renderMeals(); }
 function renderRules(){
